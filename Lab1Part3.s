@@ -15,34 +15,209 @@ twentytwo EQU 0x00400000 ; 1 << 22
 
 __main
 	; Your code goes here!
-		MOV   R3, #7
-		MOV   R7, #19
-		MOV   R1, #0xbeef
-        MOV   R0, #0  ; fib(n)
 		BL    LEDSETUP
-		BL    LEDON
+		; call fib
+		; set R0 to correct value
+		MOV   R0, #9
+		BL    morse
 		B     forever
 
-fib		
-	    CMP   R3, #0
-        BGT   retone
-        MOV   R3, #0
-        B     end
-
+fib
+		PUSH  {R4, R5, LR}
+		CMP   R0, #0
+		BLEQ  fibzero
+		CMP   R0, #1
+		BLEQ  fibone
+		SUB   R0, R0, #1 ; n - 1
+		SUB   R4, R0, #1 ; n - 2
+		BL    fib        ; recursive call to fib(n-1)
+		MOV   R5, R0     ; store value of fib(n-1)
+		MOV   R0, R4
+		BL    fib        ; recursive call to fib(n-2)
+		ADD   R0, R0, R5 ; fib(n-1) + fib(n-2)
+		POP   {R4, R5, LR}
+		BX    LR
+		
+fibzero
+		MOV   R0, #0
+		BX    LR
+		
 fibone
-        CMP   R3, #1
-        BNE   loop
-        MOV   R3, #1
-        B     end
+		MOV   R0, #1
+		BX    LR
 
-loop
-        SUB   R3, R3, #1
-        MOV   R0, R3
-        BL    fib
-        MOV   R4, R0
+morse
+		PUSH  {LR}
+	    CMP   R0, #0
+		BLEQ   zero
+		CMP   R0, #1
+		BLEQ  one
+		CMP   R0, #2
+		BLEQ  two
+		CMP   R0, #3
+		BLEQ  three
+		CMP   R0, #4
+		BLEQ  four
+		CMP   R0, #5
+		BLEQ  five
+		CMP   R0, #6
+		BLEQ  six
+		CMP   R0, #7
+		BLEQ  seven
+		CMP   R0, #8
+		BLEQ  eightt
+		CMP   R0, #9
+		BLEQ  nine
+		POP   {LR}
+		BX    LR
+		
+zero
+		PUSH  {LR}
+		BL    dash
+		BL    dash
+		BL    dash
+		BL    dash
+		BL    dash
+		POP   {LR}
+		BX    LR
+		
+one
+		PUSH  {LR}
+		BL    dot
+		BL    dash
+		BL    dash
+		BL    dash
+		BL    dash
+		POP   {LR}
+		BX    LR
+		
+two
+		PUSH  {LR}
+		BL    dot
+		BL    dot
+		BL    dash
+		BL    dash
+		BL    dash
+		POP   {LR}
+		BX    LR
+		
+three
+		PUSH  {LR}
+		BL    dot
+		BL    dot
+		BL    dot
+		BL    dash
+		BL    dash
+		POP   {LR}
+		BX    LR
 
-end
-        BX    LR
+four
+		PUSH  {LR}
+		BL    dot
+		BL    dot
+		BL    dot
+		BL    dot
+		BL    dash
+		POP   {LR}
+		BX    LR
+		
+five
+		PUSH  {LR}
+		BL    dot
+		BL    dot
+		BL    dot
+		BL    dot
+		BL    dot
+		POP   {LR}
+		BX    LR
+		
+six
+		PUSH  {LR}
+		BL    dash
+		BL    dot
+		BL    dot
+		BL    dot
+		BL    dot
+		POP   {LR}
+		BX    LR
+		
+seven
+		PUSH  {LR}
+		BL    dash
+		BL    dash
+		BL    dot
+		BL    dot
+		BL    dot
+		POP   {LR}
+		BX    LR
+		
+eightt
+		PUSH  {LR}
+		BL    dash
+		BL    dash
+		BL    dash
+		BL    dot
+		BL    dot
+		POP   {LR}
+		BX    LR
+		
+nine
+		PUSH  {LR}
+		BL    dash
+		BL    dash
+		BL    dash
+		BL    dash
+		BL    dot
+		POP   {LR}
+		BX    LR
+		
+dot
+		PUSH  {LR, R7}
+		BL    LEDON
+		MOV   R7, #0x000F0000
+		BL    delay
+		BL    LEDOFF
+		MOV   R7, #0x000F0000
+		BL    delay
+		POP   {LR, R7}
+		BX    LR
+
+dash
+		PUSH  {LR, R7}
+		BL    LEDON
+		MOV   R7, #0x000F0000
+		BL    delay
+		MOV   R7, #0x000F0000
+		BL    delay
+		MOV   R7, #0x000F0000
+		BL    delay
+		BL    LEDOFF
+		MOV   R7, #0x000F0000
+		BL    delay
+		POP   {LR, R7}
+		BX    LR
+		
+pause
+		PUSH  {LR, R7}
+		MOV   R7, #0x000F0000
+		BL    delay
+		MOV   R7, #0x000F0000
+		BL    delay
+		MOV   R7, #0x000F0000
+		BL    delay
+		POP   {LR, R7}
+		BX    LR
+		
+delay
+	; function that allows us to delay lighting the LED
+		SUBS   R7, #1
+		NOP
+		NOP
+		NOP
+		NOP
+		NOP
+		BNE   delay
+		BX    LR
 
 ; Call this function first to set up the LED
 LEDSETUP
