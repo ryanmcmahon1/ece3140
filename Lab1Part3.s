@@ -16,34 +16,35 @@ twentytwo EQU 0x00400000 ; 1 << 22
 __main
 	; Your code goes here!
 		BL    LEDSETUP
-		; call fib
-		; set R0 to correct value
-		MOV   R0, #9
-		BL    morse
+		MOV   R0, #6   ; setting n for fib(n)
+		BL    fib      ; fib(n)
+		BL    morse    ; morseDigit(fib(n))
 		B     forever
-
-fib
+		
+fib	
 		PUSH  {R4, R5, LR}
 		CMP   R0, #0
-		BLEQ  fibzero
-		CMP   R0, #1
-		BLEQ  fibone
-		SUB   R0, R0, #1 ; n - 1
-		SUB   R4, R0, #1 ; n - 2
-		BL    fib        ; recursive call to fib(n-1)
-		MOV   R5, R0     ; store value of fib(n-1)
-		MOV   R0, R4
-		BL    fib        ; recursive call to fib(n-2)
-		ADD   R0, R0, R5 ; fib(n-1) + fib(n-2)
-		POP   {R4, R5, LR}
-		BX    LR
-		
-fibzero
+		BNE   notzero
 		MOV   R0, #0
-		BX    LR
+		B     exit
 		
-fibone
+notzero
+		CMP   R0, #1
+		BNE   notone
 		MOV   R0, #1
+		B     exit
+		
+notone
+		SUB   R0, R0, #1 ; n - 1
+		MOV   R5, R0     ; storing n - 1
+		BL    fib        ; fib(n - 1)
+		MOV   R4, R0     ; storing fib(n - 1)
+		SUB   R0, R5, #1 ; n - 2
+		BL    fib        ; fib(n - 2)
+		ADD   R0, R4, R0
+		
+exit
+		POP   {R4 ,R5, LR}
 		BX    LR
 
 morse
