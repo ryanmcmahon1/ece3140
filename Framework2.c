@@ -6,6 +6,9 @@ unsigned int green_toggle = 0, blue_toggle = 0;
 // used for debugging
 unsigned int time, tflg;
 
+// counter to turn on blue LED
+unsigned int counter = 0;
+
 // This function sets up the PIT timer and enables interrupts
 void pit_setup() {
 	SIM->SCGC6 = SIM_SCGC6_PIT_MASK; // Enable clock to PIT module
@@ -65,7 +68,22 @@ int main (void)
 	
 	while (1) {
 		tflg = PIT->CHANNEL[0].TFLG; // reading the value of TFLG, for debugging
-		time = PIT_CVAL0; // reading current value on timer, for debugging		
+		time = PIT_CVAL0; // reading current value on timer, for debugging
+		
+		counter++;
+		if (counter > 0x2FFFF) {
+			if (blue_toggle == 0) {
+				blue_ledon();
+				blue_toggle = 1;
+			}
+			
+			else {
+				blue_ledoff();
+				blue_toggle = 0;
+			}
+			
+			counter = 0;
+		}
 	}
 }
 
@@ -81,12 +99,15 @@ void PIT0_IRQHandler(void)
 	if (green_toggle == 0) {
 		green_toggle = 1;
 		green_ledon();
+		PIT->CHANNEL[0].LDVAL = 0xFFFFFF; // Set load value of zeroth PIT
 	}
 	
 	// if LED is on, turn it back off
 	else {
 		green_toggle = 0;
 		green_ledoff();
+		PIT->CHANNEL[0].LDVAL = 0x2AAAAA; // Set load value of zeroth PIT
+	
 	}
 	
 	PIT_TFLG0 = 1; // writing 1 to TFLG to clear interrupt flag
