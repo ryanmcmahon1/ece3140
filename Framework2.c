@@ -1,5 +1,11 @@
 #include <MK64F12.h>
 
+// toggle bits that allow us to toggle blue and green LEDs on/off
+unsigned int green_toggle = 0, blue_toggle = 0;
+
+// used for debugging
+unsigned int time, tflg;
+
 // This function sets up the PIT timer and enables interrupts
 void pit_setup() {
 	SIM->SCGC6 = SIM_SCGC6_PIT_MASK; // Enable clock to PIT module
@@ -49,11 +55,18 @@ void green_ledoff() {
 
 int main (void)
 {
-	  NVIC_EnableIRQ(PIT0_IRQn); /* enable PIT0 Interrupts (for part 2) */
-
-	  while (1) {
-			
-		}
+	NVIC_EnableIRQ(PIT0_IRQn); /* enable PIT0 Interrupts (for part 2) */
+	pit_setup(); // Setting up PIT timer
+	blue_ledsetup(); // Setting up blue LED
+	blue_ledoff(); // Starting with blue LED off
+	green_ledsetup(); // Setting up green LED
+	green_ledoff(); // Starting with green LED off
+	PIT_TFLG0 = 1;
+	
+	while (1) {
+		tflg = PIT->CHANNEL[0].TFLG; // reading the value of TFLG, for debugging
+		time = PIT_CVAL0; // reading current value on timer, for debugging		
+	}
 }
 
 
@@ -62,5 +75,17 @@ int main (void)
 */
 void PIT0_IRQHandler(void)
 {
+	// if LED is off, turn it back on
+	if (green_toggle == 0) {
+		green_toggle = 1;
+		green_ledon();
+	}
+	
+	// if LED is on, turn it back off
+	else {
+		green_toggle = 0;
+		green_ledoff();
+	}
+	
 	PIT_TFLG0 = 1; // writing 1 to TFLG to clear interrupt flag
 }
