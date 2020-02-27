@@ -55,12 +55,12 @@ void green_ledoff() {
 
 int main (void)
 {
-	NVIC_EnableIRQ(PIT0_IRQn); /* enable PIT0 Interrupts (for part 2) */
 	pit_setup(); // Setting up PIT timer
 	blue_ledsetup(); // Setting up blue LED
 	blue_ledoff(); // Starting with blue LED off
 	green_ledsetup(); // Setting up green LED
 	green_ledoff(); // Starting with green LED off
+	NVIC_EnableIRQ(PIT0_IRQn); /* enable PIT0 Interrupts (for part 2) */
 	PIT_TFLG0 = 1;
 	
 	while (1) {
@@ -75,6 +75,8 @@ int main (void)
 */
 void PIT0_IRQHandler(void)
 {
+	tflg = PIT->CHANNEL[0].TFLG; // reading the value of TFLG, for debugging
+	time = PIT_CVAL0; // reading current value on timer, for debugging
 	// if LED is off, turn it back on
 	if (green_toggle == 0) {
 		green_toggle = 1;
