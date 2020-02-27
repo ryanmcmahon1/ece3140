@@ -8,7 +8,8 @@ void pit_setup() {
 	PIT_MCR = 1;
 	PIT_TCTRL(0) = 1;
 	PIT_TCTRL(1) = 1;
-	PIT->CHANNEL[0].LDVAL = 30000; // Set load value of zeroth PIT
+	PIT->CHANNEL[0].LDVAL = 0xFFFFFF; // Set load value of zeroth PIT
+	time = PIT_CVAL0;
 }
 
 void red_ledsetup() {
@@ -45,15 +46,17 @@ int main (void)
 			if (toggle == 0) {
 				toggle = 1;
 				red_ledon();
-				PIT_TCTRL(0) = 0;
-				PIT_TCTRL(0) = 1;
+				//PIT_TCTRL(0) = 0;
+				//PIT_TCTRL(0) = 1;
+				PIT_TFLG0 = 1;
 			}
 			
 			else {
 				toggle = 0;
 				red_ledoff();
-				PIT_TCTRL(0) = 0;
-				PIT_TCTRL(0) = 1;
+				//PIT_TCTRL(0) = 0;
+				//PIT_TCTRL(0) = 1;
+				PIT_TFLG0 = 1;
 			}
 		}
 	}
