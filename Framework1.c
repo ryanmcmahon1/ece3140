@@ -8,7 +8,6 @@ void pit_setup() {
 	SIM->SCGC6 = SIM_SCGC6_PIT_MASK; // Enable clock to PIT module
 	PIT_MCR = 1;
 	PIT_TCTRL(0) = 1;
-	PIT_TCTRL(1) = 1;
 	PIT->CHANNEL[0].LDVAL = 0xFFFFFF; // Set load value of zeroth PIT
 	time = PIT_CVAL0;
 }
@@ -37,8 +36,6 @@ int main (void)
 	pit_setup(); // Setting up the PIT timer
 	red_ledsetup(); // Setting up the red LED
 	red_ledoff(); // Starting with the LED off
-	tflg = PIT->CHANNEL[0].TFLG;
-	tflg = PIT_TFLG0;
 	
 	while (1) {
 		tflg = PIT->CHANNEL[0].TFLG; // reading the value of TFLG, for debugging

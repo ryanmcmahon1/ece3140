@@ -3,6 +3,9 @@
 // toggle bits that allow us to toggle blue and green LEDs on/off
 unsigned int green_toggle = 0, blue_toggle = 0;
 
+unsigned int counter_value = 0xB49FC;
+unsigned int timer_value = 0x11FFD08;
+
 // used for debugging
 unsigned int time, tflg;
 
@@ -15,7 +18,7 @@ void pit_setup() {
 	PIT_MCR = 1;
 	PIT_TCTRL(0) = 3; // interrupts are enabled
 	PIT_TCTRL(1) = 3;
-	PIT->CHANNEL[0].LDVAL = 0xFFFFFF; // Set load value of zeroth PIT
+	PIT->CHANNEL[0].LDVAL = timer_value; // Set load value of zeroth PIT
 }
 
 // Sets up blue LED by enabling clock and setting PTB21 as GPIO output
@@ -70,19 +73,18 @@ int main (void)
 		tflg = PIT->CHANNEL[0].TFLG; // reading the value of TFLG, for debugging
 		time = PIT_CVAL0; // reading current value on timer, for debugging
 		
-		counter++;
-		if (counter > 0x2FFFF) {
-			if (blue_toggle == 0) {
-				blue_ledon();
-				blue_toggle = 1;
-			}
+		for ( counter = 0; counter <= counter_value; counter++ ) {
+			if (counter >= counter_value) {
+				if (blue_toggle == 0) {
+					blue_ledon();
+					blue_toggle = 1;
+				}
 			
-			else {
-				blue_ledoff();
-				blue_toggle = 0;
+				else {
+					blue_ledoff();
+					blue_toggle = 0;
+				}
 			}
-			
-			counter = 0;
 		}
 	}
 }
@@ -99,14 +101,14 @@ void PIT0_IRQHandler(void)
 	if (green_toggle == 0) {
 		green_toggle = 1;
 		green_ledon();
-		PIT->CHANNEL[0].LDVAL = 0xFFFFFF; // Set load value of zeroth PIT
+		PIT->CHANNEL[0].LDVAL = timer_value; // Set load value of zeroth PIT
 	}
 	
 	// if LED is on, turn it back off
 	else {
 		green_toggle = 0;
 		green_ledoff();
-		PIT->CHANNEL[0].LDVAL = 0x2AAAAA; // Set load value of zeroth PIT
+		PIT->CHANNEL[0].LDVAL = timer_value / 9; // Set load value of zeroth PIT
 	
 	}
 	
