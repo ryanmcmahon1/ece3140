@@ -7,49 +7,78 @@ process_t* process_queue= NULL;
 process_t* current_process= NULL;
 
 struct process_state {
-				// vars needed for process state
-				unsigned int* sp; // stack pointer
-				unsigned int* osp; // original stack pointer
-				unsigned int size; // size of process
-				unsigned int process_status; // status
-				struct process_state* next; // next process ( for queue)
-			};
+	// vars needed for process state
+	unsigned int* sp; // stack pointer
+	unsigned int* osp; // original stack pointer
+	unsigned int size; // size of process
+	unsigned int process_status; // status
+	struct process_state* next; // next process ( for queue)
+};
 
+// This function sets up the PIT timer and enables interrupts
+void pit_setup() {
+	SIM->SCGC6 = SIM_SCGC6_PIT_MASK; // Enable clock to PIT module
+	PIT->MCR =0x00; // Allows me to turn timer on
+	PIT->CHANNEL[0].LDVAL = SystemCoreClock /10000; // ~1 second
+	PIT->CHANNEL[0].TCTRL |= (1 << 1); // Enable Interrupts
+}
+
+// helper method that appends a process to the end of a queue
 void enqueue(process_t* proc) {
 	// if queue empty, given process is the head
-	if (process_queue == NULL) { process_queue = proc; }
-	else { // if not empty
+	if (process_queue == NULL) {
+		process_queue = proc;
+		proc->next = NULL;
+	}
+
+	// otherwise, add given process to the end of the queue
+	else { 
 		process_t* temp = process_queue;
+
 		// find end of queue
 		while ( temp->next != NULL ) {
 			temp = temp->next;
 		}
 		// put process at the end
 		temp->next = proc;
+		proc->next = NULL;
 	}
 }
 
 process_t* dequeue(void) {
-	// set head process to process after the head and return it
-	process_queue = process_queue->next;
-	return process_queue;
+	// if queue is empty, return NULL
+	if (process_queue == NULL) {
+		return NULL;
+	}
+
+	// otherwise, return head process and set the next process as the head
+	else {
+		// temporary pointer to keep track of first element
+		process_t* temp = process_queue;
+		process_queue = temp->next;
+		return temp;
+	}
 }
 			
-			
+// Creates a process that executes function f with stack size n	
 int process_create (void (*f)(void), int n) {
 	// allocate memory for new process
 	process_t* p = (process_t*) malloc( sizeof(process_t));
-	
-	//init process state
-	p->sp = process_stack_init( (*f), n);
+	// Returning -1 if malloc fails
+	if (p == NULL) return -1;
+
+	// allocate memory for new process state on the stack
+	unsigned int* sp = process_stack_init(f, n);
+	// Returning -1 if stack can't be allocated
+	if (sp == NULL) return -1;
+
+	// Assigning data to the struct
+	p->sp = sp;
 	p->osp = process_queue->sp;
 	p->size = n;
 	p->process_status = 0;
 	p->next = NULL;
-	
-	// checks for error (couldn't allocate memory
-	if ( p->sp == NULL) { return -1; }
-	
+
 	// adds process to the queue
 	enqueue( p );
 	
@@ -58,15 +87,17 @@ int process_create (void (*f)(void), int n) {
 }
 
 void process_start (void) {
+
 	//enable inturupts
 	NVIC_EnableIRQ(PIT0_IRQn);
 	
 	//set up PIT
-	SIM->SCGC6 = SIM_SCGC6_PIT_MASK; // Enable clock to PIT module
-	PIT->MCR =0x00; // Allows me to turn timer on
-	PIT->CHANNEL[0].LDVAL = SystemCoreClock /10000; // ~1 second
-	PIT->CHANNEL[0].TCTRL |= (1 << 1); // Enable Interrupts
-	//PIT->CHANNEL[0].TCTRL |= (1 << 0); // Start timer
+	pit_setup();
+	
+	if (process_queue != NULL) {
+		current_process = dequeue();
+	}
+
 	// begin
 	process_begin();
 }
@@ -81,18 +112,18 @@ unsigned int* process_select(unsigned int* cursp) {
 		current_process = dequeue();
 	}
 	else { // stopped a process
-			//add back to queue
-			enqueue(current_process);
-			
-		  // make temp
-			process_t* temp = current_process;
+		//add back to queue
+		enqueue(current_process);
 		
-			// get next process
-			current_process = dequeue();
-		
-		  // fix the stack pointer and next
-			temp->sp = cursp;
-			temp->next = NULL;
+		// make temp
+		process_t* temp = current_process;
+	
+		// get next process
+		current_process = dequeue();
+	
+		// fix the stack pointer and next
+		temp->sp = cursp;
+		temp->next = NULL;
 	}
 	
 		// if no next process. return NULL
