@@ -2,130 +2,104 @@
 #include <stdlib.h>
 #include <MK64F12.h>
 
-unsigned int timer_value = 0xFFF;
+// globals
+process_t* process_queue= NULL;
+process_t* current_process= NULL;
 
-process_t* process_queue = NULL;
-process_t* current_process = NULL;
-
-// process_state struct, with typedef process_t
 struct process_state {
-	int n;                        // Size of stack frame
-	unsigned int* original_sp;    // Original stack pointer
-	unsigned int* sp;             // Current Stack pointer
-	struct process_state* next_p; // Next process
-};
+				// vars needed for process state
+				unsigned int* sp; // stack pointer
+				unsigned int* osp; // original stack pointer
+				unsigned int size; // size of process
+				unsigned int process_status; // status
+				struct process_state* next; // next process ( for queue)
+			};
 
-// This function sets up the PIT timer and enables interrupts
-void pit_setup() {
-	SIM->SCGC6 = SIM_SCGC6_PIT_MASK; // Enable clock to PIT module
-	PIT_MCR = 1;
-	PIT_TCTRL(0) = 3; // interrupts are enabled
-	PIT_TCTRL(1) = 3;
-	PIT->CHANNEL[0].LDVAL = timer_value; // Set load value of zeroth PIT
-}
-
-// helper method that appends a process to the end of a queue
 void enqueue(process_t* proc) {
-	
-	// Case 1: queue is empty, so add this process to the head
-	if (process_queue == NULL) {
-		process_queue = proc;
-		proc->next_p = NULL;
-	}
-	
-	// Case 2: queue is nonempty, so add this process to the end
-	else {
-		process_t* temp_p = process_queue;
-		
-		while (temp_p->next_p != NULL) {
-			// Continue iterating until we get to the last element
-			temp_p = temp_p->next_p;
+	// if queue empty, given process is the head
+	if (process_queue == NULL) { process_queue = proc; }
+	else { // if not empty
+		process_t* temp = process_queue;
+		// find end of queue
+		while ( temp->next != NULL ) {
+			temp = temp->next;
 		}
-		
-		// Set next pointer of this final element
-		temp_p->next_p = proc;
-		proc->next_p = NULL;
+		// put process at the end
+		temp->next = proc;
 	}
 }
 
-// helper method that removes and returns process at head of queue
-process_t* dequeue() {
-	
-	// Case 1: if queue is empty, we have nothing to return
-	if (process_queue == NULL) {
-		return NULL;
-	}
-	
-	// Case 2: queue is nonempty, return first element and adjust pointers
-	else {
-		// temporary pointer to keep track of first element
-		process_t* temp_p = process_queue;
-		process_queue = temp_p->next_p;
-		return temp_p;
-	}
+process_t* dequeue(void) {
+	// set head process to process after the head and return it
+	process_queue = process_queue->next;
+	return process_queue;
 }
-
-// Creates a process that starts at function f with stack size n
+			
+			
 int process_create (void (*f)(void), int n) {
+	// allocate memory for new process
+	process_t* p = (process_t*) malloc( sizeof(process_t));
 	
-	// Creating new process_t struct and allocating memory
-	process_t* proc = malloc(sizeof(process_t));
-	// Returning -1 if malloc fails
-	if (proc == NULL) return -1;
+	//init process state
+	p->sp = process_stack_init( (*f), n);
+	p->osp = process_queue->sp;
+	p->size = n;
+	p->process_status = 0;
+	p->next = NULL;
 	
-	// Allocating memory for the process state on the stack
-	unsigned int* sp = process_stack_init(f, n);
-	// Returning -1 if stack can't be allocated
-	if (sp == NULL) return -1;
+	// checks for error (couldn't allocate memory
+	if ( p->sp == NULL) { return -1; }
 	
-	// Assigning fields to the struct
-	proc->n = n;
-	proc->original_sp = sp;
-	proc->sp = sp;
-	proc->next_p = NULL;
+	// adds process to the queue
+	enqueue( p );
 	
-	// Enqueueing this process to the process queue
-	enqueue(proc);
-	
-	// If everything else succeeded, return 0
+	// if no error, return 0
 	return 0;
 }
 
-// Sets up processes and calls process begin
 void process_start (void) {
-	
-	// Calling helper functions to setup PIT
-	pit_setup();
+	//enable inturupts
 	NVIC_EnableIRQ(PIT0_IRQn);
 	
-	// Moving the first element from the process queue
-	if (process_queue != NULL) {
-		current_process = dequeue();
-	}
-	// If there is nothing in the queue, then current process
-	// is NULL
-	
-	// Initiate first process
+	//set up PIT
+	SIM->SCGC6 = SIM_SCGC6_PIT_MASK; // Enable clock to PIT module
+	PIT->MCR =0x00; // Allows me to turn timer on
+	PIT->CHANNEL[0].LDVAL = SystemCoreClock /10000; // ~1 second
+	PIT->CHANNEL[0].TCTRL |= (1 << 1); // Enable Interrupts
+	//PIT->CHANNEL[0].TCTRL |= (1 << 0); // Start timer
+	// begin
 	process_begin();
 }
 
-// Selects next ready process when PIT0 interrupt handler is called
-unsigned int* process_select (unsigned int* cursp) {
-	
-	// Checking if there is a currently running process
-	if (cursp != NULL) {
-		// Add current process to the process queue
-		enqueue(current_process);
+unsigned int* process_select(unsigned int* cursp) {
+	// no currently running process or process terminated
+	if ( current_process == NULL ) {
+		current_process = process_queue;
+	}
+	else if (cursp == NULL) {
+		process_stack_free( current_process->osp, current_process->size);
+		current_process = dequeue();
+	}
+	else { // stopped a process
+			//add back to queue
+			enqueue(current_process);
+			
+		  // make temp
+			process_t* temp = current_process;
 		
-		// Check if queue is empty
-		if (process_queue != NULL) {
-			// Add head of queue to current process
+			// get next process
 			current_process = dequeue();
-			// Return stack pointer for next process
-			return current_process->sp;
-		}
+		
+		  // fix the stack pointer and next
+			temp->sp = cursp;
+			temp->next = NULL;
 	}
 	
-	// If there is no process ready, return NULL
-	return NULL;
+		// if no next process. return NULL
+		if ( current_process == NULL ) { return NULL; }
+		
+		// otherwise return next stack pointer
+		return current_process->sp;
 }
+
+
