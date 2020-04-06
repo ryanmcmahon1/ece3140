@@ -65,7 +65,7 @@ int process_create (void (*f)(void), int n) {
 	// allocate memory for new process
 	process_t* p = (process_t*) malloc( sizeof(process_t));
 	// Returning -1 if malloc fails
-	if (proc == NULL) return -1;
+	if (p == NULL) return -1;
 
 	// allocate memory for new process state on the stack
 	unsigned int* sp = process_stack_init(f, n);
@@ -93,7 +93,7 @@ void process_start (void) {
 	
 	//set up PIT
 	pit_setup();
-
+	
 	if (process_queue != NULL) {
 		current_process = dequeue();
 	}
